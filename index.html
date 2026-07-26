@@ -311,17 +311,13 @@
 <script>
 const IMG = 'https://image.tmdb.org/t/p/';
 const API = 'https://api.themoviedb.org/3';
-let API_KEY = localStorage.getItem('tmdb_key') || '';
+let API_KEY = localStorage.getItem('tmdb_key') || '513182919ede525d4b5c8292e15b3c06';
 let currentTab = 'movie';
 
 // ---------- API key modal ----------
 function checkKey(){
-  if(API_KEY){
-    document.getElementById('apikey-modal').classList.add('hidden');
-    init();
-  } else {
-    document.getElementById('apikey-modal').classList.remove('hidden');
-  }
+  document.getElementById('apikey-modal').classList.add('hidden');
+  init();
 }
 document.getElementById('apikey-save').addEventListener('click', ()=>{
   const v = document.getElementById('apikey-input').value.trim();

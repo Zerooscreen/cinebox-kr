@@ -1,0 +1,8 @@
+{
+  "name": "cinebox-kr",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npx serve -s . -l $PORT"
+  }
+}

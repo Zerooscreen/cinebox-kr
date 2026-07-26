@@ -317,7 +317,8 @@ let currentTab = 'movie';
 // ---------- API key modal ----------
 function checkKey(){
   document.getElementById('apikey-modal').classList.add('hidden');
-  init();
+  if(!location.hash) location.hash = '#/movie';
+  else router();
 }
 document.getElementById('apikey-save').addEventListener('click', ()=>{
   const v = document.getElementById('apikey-input').value.trim();
@@ -424,16 +425,59 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     currentTab = btn.dataset.tab;
-    showHome();
-    init();
+    location.hash = '#/' + currentTab;
   });
 });
-document.getElementById('logo-home').addEventListener('click', showHome);
+document.getElementById('logo-home').addEventListener('click', ()=>{ location.hash = '#/movie'; });
 
 function showHome(){
   document.getElementById('home-view').classList.remove('hidden');
   document.getElementById('detail').classList.remove('show');
 }
+
+// ---------- ROUTER (hash-based URL per halaman) ----------
+// Format URL:
+//   #/movie                -> tab film
+//   #/tv                   -> tab series
+//   #/movie/12345          -> detail film id 12345
+//   #/tv/6789               -> detail series id 6789
+function parseHash(){
+  const raw = location.hash.replace(/^#\/?/, ''); // e.g. "movie/12345"
+  const parts = raw.split('/').filter(Boolean);
+  return { type: parts[0] || 'movie', id: parts[1] || null };
+}
+
+async function router(){
+  const { type, id } = parseHash();
+  if(type !== 'movie' && type !== 'tv'){
+    location.hash = '#/movie';
+    return;
+  }
+  currentTab = type;
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab === type);
+  });
+
+  if(id){
+    document.getElementById('home-view').classList.add('hidden');
+    const detail = document.getElementById('detail');
+    detail.classList.add('show');
+    detail.innerHTML = `<div class="loading">불러오는 중...</div>`;
+    window.scrollTo(0,0);
+    try{
+      if(type === 'movie') await renderMovieDetail(id);
+      else await renderTvDetail(id);
+    }catch(e){
+      detail.innerHTML = `<button class="back-btn" onclick="location.hash='#/${type}'">← 돌아가기</button><div class="empty">정보를 불러오지 못했습니다.</div>`;
+    }
+  } else {
+    showHome();
+    await loadHero();
+    await loadRows();
+  }
+}
+
+window.addEventListener('hashchange', router);
 
 // ---------- SEARCH ----------
 let searchTimeout;
@@ -476,22 +520,8 @@ async function doSearch(q){
 }
 
 // ---------- DETAIL ----------
-async function openDetail(id, type){
-  document.getElementById('home-view').classList.add('hidden');
-  const detail = document.getElementById('detail');
-  detail.classList.add('show');
-  detail.innerHTML = `<div class="loading">불러오는 중...</div>`;
-  window.scrollTo(0,0);
-
-  try{
-    if(type === 'movie'){
-      await renderMovieDetail(id);
-    } else {
-      await renderTvDetail(id);
-    }
-  }catch(e){
-    detail.innerHTML = `<button class="back-btn" onclick="showHome()">← 돌아가기</button><div class="empty">정보를 불러오지 못했습니다.</div>`;
-  }
+function openDetail(id, type){
+  location.hash = '#/' + type + '/' + id;
 }
 
 function genreRow(genres){
@@ -533,7 +563,7 @@ async function renderMovieDetail(id){
   const detail = document.getElementById('detail');
   const runtime = data.runtime ? `${Math.floor(data.runtime/60)}시간 ${data.runtime%60}분` : '정보 없음';
   detail.innerHTML = `
-    <button class="back-btn" onclick="showHome()">← 돌아가기</button>
+    <button class="back-btn" onclick="location.hash='#/'+currentTab">← 돌아가기</button>
     <div class="detail-hero">
       <div class="hero-bg" style="background-image:url('${img(data.backdrop_path,'original')}')"></div>
       <div class="hero-fade"></div>
@@ -578,7 +608,7 @@ async function renderTvDetail(id){
   const detail = document.getElementById('detail');
   const seasons = (data.seasons||[]).filter(s=>s.season_number>=0);
   detail.innerHTML = `
-    <button class="back-btn" onclick="showHome()">← 돌아가기</button>
+    <button class="back-btn" onclick="location.hash='#/'+currentTab">← 돌아가기</button>
     <div class="detail-hero">
       <div class="hero-bg" style="background-image:url('${img(data.backdrop_path,'original')}')"></div>
       <div class="hero-fade"></div>

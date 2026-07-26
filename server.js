@@ -1,13 +1,29 @@
 const express = require('express');
 const path = require('path');
 const { tmdb, img, slugify } = require('./lib/tmdb');
-const { head, layout, posterCard, genreRow, trailerBlock, castGrid, escapeHtml, DEFAULT_TITLE, DEFAULT_DESC, SITE_NAME } = require('./lib/render');
+const { head, layout, posterCard, genreRow, trailerBlock, castGrid, escapeHtml, movieJsonLd, tvJsonLd, DEFAULT_TITLE, DEFAULT_DESC, SITE_NAME } = require('./lib/render');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Ganti dengan domain final Anda (Railway akan beri tahu setelah deploy)
 const SITE_URL = process.env.SITE_URL || 'https://cinebox-kr.up.railway.app';
+
+// ---------- Pola judul & deskripsi SEO (dipakai di SEMUA halaman detail) ----------
+// Format ini konsisten untuk setiap film/series apa pun (Spider-Man, Supergirl, dst),
+// memakai keyword bervolume tinggi TAPI tetap jujur sesuai isi halaman (sinopsis/info),
+// bukan klaim "streaming gratis" yang tidak sesuai konten -> aman dari Google spam policy.
+function seoTitle(kind, title, year) {
+  const label = kind === 'movie' ? '영화' : '시리즈';
+  const y = year || '개봉연도 미상';
+  return `[${label}] ${title} (${y}) 줄거리·평점·출연진·예고편 총정리`;
+}
+
+function seoDescription(title, year, genreNames) {
+  const yearPart = year ? `${year}년 작품, ` : '';
+  const genrePart = genreNames ? `${genreNames} 장르, ` : '';
+  return `${title}의 줄거리와 출연진, 평점, 공식 예고편을 씨네박스에서 한눈에 확인하세요. ${genrePart}${yearPart}개봉 정보까지 빠르게 정리했습니다.`;
+}
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -124,11 +140,12 @@ app.get('/movie/:id/:slug?', async (req, res) => {
       <div class="section-block"><h3>줄거리</h3><div class="bio-text">${escapeHtml(data.overview) || '등록된 줄거리가 없습니다.'}</div></div>
       <div class="section-block"><h3>예고편</h3>${trailerBlock(videos)}</div>
       <div class="section-block"><h3>출연진</h3>${castGrid(credits)}</div>
+      ${movieJsonLd(data, `${SITE_URL}/movie/${id}/${encodeURIComponent(correctSlug)}`)}
     `;
 
     const headHtml = head({
-      title: `${data.title} · 씨네박스 | 줄거리·출연진·예고편`,
-      description: data.overview,
+      title: seoTitle('movie', data.title, (data.release_date || '').slice(0, 4)),
+      description: seoDescription(data.title, (data.release_date || '').slice(0, 4), (data.genres || []).map(g => g.name).join(', ')),
       url: `${SITE_URL}/movie/${id}/${encodeURIComponent(correctSlug)}`,
       image: img(data.backdrop_path || data.poster_path, 'w780'),
       type: 'video.movie',
@@ -137,7 +154,12 @@ app.get('/movie/:id/:slug?', async (req, res) => {
     res.send(layout({ headHtml, bodyHtml, activeTab: 'movie' }));
   } catch (e) {
     res.status(404).send(layout({
-      headHtml: head({ title: '영화를 찾을 수 없습니다 · 씨네박스', description: DEFAULT_DESC, url: `${SITE_URL}/movie/${id}` }),
+      headHtml: head({
+        title: '영화를 찾을 수 없습니다 · 씨네박스',
+        description: DEFAULT_DESC,
+        url: `${SITE_URL}/movie/${id}`,
+        robots: 'noindex, nofollow',
+      }),
       bodyHtml: `<a class="back-btn" href="/movie">← 돌아가기</a><div class="empty">영화 정보를 찾을 수 없습니다.</div>`,
       activeTab: 'movie',
     }));
@@ -200,11 +222,12 @@ app.get('/tv/:id/:slug?', async (req, res) => {
         <h3>시즌 &amp; 에피소드</h3>
         <div class="season-list" id="season-list">${seasonsHtml}</div>
       </div>
+      ${tvJsonLd(data, `${SITE_URL}/tv/${id}/${encodeURIComponent(correctSlug)}`)}
     `;
 
     const headHtml = head({
-      title: `${data.name} · 씨네박스 | 줄거리·출연진·예고편`,
-      description: data.overview,
+      title: seoTitle('tv', data.name, (data.first_air_date || '').slice(0, 4)),
+      description: seoDescription(data.name, (data.first_air_date || '').slice(0, 4), (data.genres || []).map(g => g.name).join(', ')),
       url: `${SITE_URL}/tv/${id}/${encodeURIComponent(correctSlug)}`,
       image: img(data.backdrop_path || data.poster_path, 'w780'),
       type: 'video.tv_show',
@@ -213,7 +236,12 @@ app.get('/tv/:id/:slug?', async (req, res) => {
     res.send(layout({ headHtml, bodyHtml, activeTab: 'tv' }));
   } catch (e) {
     res.status(404).send(layout({
-      headHtml: head({ title: '시리즈를 찾을 수 없습니다 · 씨네박스', description: DEFAULT_DESC, url: `${SITE_URL}/tv/${id}` }),
+      headHtml: head({
+        title: '시리즈를 찾을 수 없습니다 · 씨네박스',
+        description: DEFAULT_DESC,
+        url: `${SITE_URL}/tv/${id}`,
+        robots: 'noindex, nofollow',
+      }),
       bodyHtml: `<a class="back-btn" href="/tv">← 돌아가기</a><div class="empty">시리즈 정보를 찾을 수 없습니다.</div>`,
       activeTab: 'tv',
     }));
@@ -270,16 +298,17 @@ app.get('/sitemap.xml', async (req, res) => {
       tmdb('/tv/popular'),
       tmdb('/tv/top_rated'),
     ]);
+    const today = new Date().toISOString().slice(0, 10);
     const urls = [
-      { loc: `${SITE_URL}/movie`, priority: '1.0' },
-      { loc: `${SITE_URL}/tv`, priority: '1.0' },
-      ...[...mp.results, ...mt.results].map(m => ({ loc: `${SITE_URL}/movie/${m.id}/${encodeURIComponent(slugify(m.title))}`, priority: '0.7' })),
-      ...[...tp.results, ...tt.results].map(t => ({ loc: `${SITE_URL}/tv/${t.id}/${encodeURIComponent(slugify(t.name))}`, priority: '0.7' })),
+      { loc: `${SITE_URL}/movie`, priority: '1.0', changefreq: 'daily' },
+      { loc: `${SITE_URL}/tv`, priority: '1.0', changefreq: 'daily' },
+      ...[...mp.results, ...mt.results].map(m => ({ loc: `${SITE_URL}/movie/${m.id}/${encodeURIComponent(slugify(m.title))}`, priority: '0.7', changefreq: 'weekly' })),
+      ...[...tp.results, ...tt.results].map(t => ({ loc: `${SITE_URL}/tv/${t.id}/${encodeURIComponent(slugify(t.name))}`, priority: '0.7', changefreq: 'weekly' })),
     ];
     const uniq = [...new Map(urls.map(u => [u.loc, u])).values()];
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${uniq.map(u => `  <url><loc>${u.loc}</loc><priority>${u.priority}</priority></url>`).join('\n')}
+${uniq.map(u => `  <url><loc>${u.loc}</loc><lastmod>${today}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`).join('\n')}
 </urlset>`;
     res.type('application/xml').send(xml);
   } catch (e) {

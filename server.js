@@ -46,6 +46,10 @@ async function renderHome(req, res, tab) {
       `);
     }
 
+    // PENTING: slugify() mengembalikan teks mentah (belum di-encode).
+    // Saat dipakai di dalam href, wajib dibungkus encodeURIComponent agar
+    // karakter non-ASCII (mis. huruf Korea) aman di URL, sekaligus tetap
+    // konsisten dengan req.params.slug yang di-decode otomatis oleh Express.
     const heroHtml = hero ? `
       <div id="hero">
         <div class="hero-bg" style="background-image:url('${img(hero.backdrop_path, 'original')}')"></div>
@@ -54,7 +58,7 @@ async function renderHome(req, res, tab) {
           <div class="hero-eyebrow">이번 주 화제작</div>
           <div class="hero-title">${escapeHtml(heroTitle)}</div>
           <div class="hero-overview">${escapeHtml(heroOverview).slice(0, 180)}${heroOverview.length > 180 ? '…' : ''}</div>
-          <a class="hero-btn" href="/${tab}/${hero.id}/${slugify(heroTitle)}">자세히 보기 ▸</a>
+          <a class="hero-btn" href="/${tab}/${hero.id}/${encodeURIComponent(slugify(heroTitle))}">자세히 보기 ▸</a>
         </div>
       </div>` : '';
 
@@ -90,9 +94,11 @@ app.get('/movie/:id/:slug?', async (req, res) => {
       tmdb(`/movie/${id}/credits`),
       tmdb(`/movie/${id}/videos`),
     ]);
+    // correctSlug = teks mentah (decoded), sama seperti req.params.slug -> perbandingan valid
     const correctSlug = slugify(data.title);
     if (req.params.slug !== correctSlug) {
-      return res.redirect(301, `/movie/${id}/${correctSlug}`);
+      // encodeURIComponent HANYA dipakai di sini, saat membangun URL redirect
+      return res.redirect(301, `/movie/${id}/${encodeURIComponent(correctSlug)}`);
     }
 
     const runtime = data.runtime ? `${Math.floor(data.runtime / 60)}시간 ${data.runtime % 60}분` : '정보 없음';
@@ -106,7 +112,7 @@ app.get('/movie/:id/:slug?', async (req, res) => {
           <div class="detail-eyebrow">영화</div>
           <h1 class="detail-title">${escapeHtml(data.title)}</h1>
           <div class="detail-orig">${escapeHtml(data.original_title)} · ${(data.release_date || '').slice(0, 4) || '연도 미상'}</div>
-          ${data.tagline ? `<div class="tagline">“${escapeHtml(data.tagline)}”</div>` : ''}
+          ${data.tagline ? `<div class="tagline">"${escapeHtml(data.tagline)}"</div>` : ''}
           <div class="detail-meta">
             <span class="m-item star">★ ${data.vote_average ? data.vote_average.toFixed(1) : '-'} / 10</span>
             <span class="m-item">${runtime}</span>
@@ -123,7 +129,7 @@ app.get('/movie/:id/:slug?', async (req, res) => {
     const headHtml = head({
       title: `${data.title} · 씨네박스 | 줄거리·출연진·예고편`,
       description: data.overview,
-      url: `${SITE_URL}/movie/${id}/${correctSlug}`,
+      url: `${SITE_URL}/movie/${id}/${encodeURIComponent(correctSlug)}`,
       image: img(data.backdrop_path || data.poster_path, 'w780'),
       type: 'video.movie',
     });
@@ -149,7 +155,7 @@ app.get('/tv/:id/:slug?', async (req, res) => {
     ]);
     const correctSlug = slugify(data.name);
     if (req.params.slug !== correctSlug) {
-      return res.redirect(301, `/tv/${id}/${correctSlug}`);
+      return res.redirect(301, `/tv/${id}/${encodeURIComponent(correctSlug)}`);
     }
 
     const seasons = (data.seasons || []).filter(s => s.season_number >= 0);
@@ -177,7 +183,7 @@ app.get('/tv/:id/:slug?', async (req, res) => {
           <div class="detail-eyebrow">시리즈</div>
           <h1 class="detail-title">${escapeHtml(data.name)}</h1>
           <div class="detail-orig">${escapeHtml(data.original_name)} · ${(data.first_air_date || '').slice(0, 4) || '연도 미상'}</div>
-          ${data.tagline ? `<div class="tagline">“${escapeHtml(data.tagline)}”</div>` : ''}
+          ${data.tagline ? `<div class="tagline">"${escapeHtml(data.tagline)}"</div>` : ''}
           <div class="detail-meta">
             <span class="m-item star">★ ${data.vote_average ? data.vote_average.toFixed(1) : '-'} / 10</span>
             <span class="m-item">시즌 ${data.number_of_seasons || '-'}개</span>
@@ -199,7 +205,7 @@ app.get('/tv/:id/:slug?', async (req, res) => {
     const headHtml = head({
       title: `${data.name} · 씨네박스 | 줄거리·출연진·예고편`,
       description: data.overview,
-      url: `${SITE_URL}/tv/${id}/${correctSlug}`,
+      url: `${SITE_URL}/tv/${id}/${encodeURIComponent(correctSlug)}`,
       image: img(data.backdrop_path || data.poster_path, 'w780'),
       type: 'video.tv_show',
     });
@@ -267,8 +273,8 @@ app.get('/sitemap.xml', async (req, res) => {
     const urls = [
       { loc: `${SITE_URL}/movie`, priority: '1.0' },
       { loc: `${SITE_URL}/tv`, priority: '1.0' },
-      ...[...mp.results, ...mt.results].map(m => ({ loc: `${SITE_URL}/movie/${m.id}/${slugify(m.title)}`, priority: '0.7' })),
-      ...[...tp.results, ...tt.results].map(t => ({ loc: `${SITE_URL}/tv/${t.id}/${slugify(t.name)}`, priority: '0.7' })),
+      ...[...mp.results, ...mt.results].map(m => ({ loc: `${SITE_URL}/movie/${m.id}/${encodeURIComponent(slugify(m.title))}`, priority: '0.7' })),
+      ...[...tp.results, ...tt.results].map(t => ({ loc: `${SITE_URL}/tv/${t.id}/${encodeURIComponent(slugify(t.name))}`, priority: '0.7' })),
     ];
     const uniq = [...new Map(urls.map(u => [u.loc, u])).values()];
     const xml = `<?xml version="1.0" encoding="UTF-8"?>

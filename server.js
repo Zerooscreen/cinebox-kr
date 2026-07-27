@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const { tmdb, img, slugify } = require('./lib/tmdb');
-const { head, layout, posterCard, genreRow, trailerBlock, castGrid, escapeHtml, movieJsonLd, tvJsonLd, DEFAULT_TITLE, DEFAULT_DESC, SITE_NAME } = require('./lib/render');
+const { head, layout, posterCard, genreRow, trailerBlock, castGrid, escapeHtml, movieJsonLd, tvJsonLd, sideBannerAd, nativeBannerAd, DEFAULT_TITLE, DEFAULT_DESC, SITE_NAME } = require('./lib/render');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -138,8 +138,10 @@ app.get('/movie/:id/:slug?', async (req, res) => {
         </div>
       </div>
       <div class="section-block"><h3>줄거리</h3><div class="bio-text">${escapeHtml(data.overview) || '등록된 줄거리가 없습니다.'}</div></div>
+      ${nativeBannerAd()}
       <div class="section-block"><h3>예고편</h3>${trailerBlock(videos)}</div>
       <div class="section-block"><h3>출연진</h3>${castGrid(credits)}</div>
+      ${sideBannerAd()}
       ${movieJsonLd(data, `${SITE_URL}/movie/${id}/${encodeURIComponent(correctSlug)}`)}
     `;
 
@@ -216,12 +218,14 @@ app.get('/tv/:id/:slug?', async (req, res) => {
         </div>
       </div>
       <div class="section-block"><h3>줄거리</h3><div class="bio-text">${escapeHtml(data.overview) || '등록된 줄거리가 없습니다.'}</div></div>
+      ${nativeBannerAd()}
       <div class="section-block"><h3>예고편</h3>${trailerBlock(videos)}</div>
       <div class="section-block"><h3>출연진</h3>${castGrid(credits)}</div>
       <div class="section-block">
         <h3>시즌 &amp; 에피소드</h3>
         <div class="season-list" id="season-list">${seasonsHtml}</div>
       </div>
+      ${sideBannerAd()}
       ${tvJsonLd(data, `${SITE_URL}/tv/${id}/${encodeURIComponent(correctSlug)}`)}
     `;
 

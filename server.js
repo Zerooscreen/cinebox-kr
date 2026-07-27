@@ -6,8 +6,8 @@ const { head, layout, posterCard, genreRow, trailerBlock, castGrid, escapeHtml, 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Ganti dengan domain final Anda (Railway akan beri tahu setelah deploy)
-const SITE_URL = process.env.SITE_URL || 'https://cinebox-kr.up.railway.app';
+// Domain resmi situs — dipakai untuk sitemap, canonical, dan Open Graph URL
+const SITE_URL = process.env.SITE_URL || 'https://cinebox.up.railway.app';
 
 // ---------- Pola judul & deskripsi SEO (dipakai di SEMUA halaman detail) ----------
 // Format ini konsisten untuk setiap film/series apa pun (Spider-Man, Supergirl, dst),

@@ -16,7 +16,7 @@ const SITE_URL = process.env.SITE_URL || 'https://cinebox.up.railway.app';
 function seoTitle(kind, title, year) {
   const label = kind === 'movie' ? '영화' : '시리즈';
   const y = year || '개봉연도 미상';
-  return `[${label}] ${title} (${y}) 줄거리·평점·출연진·예고편 총정리`;
+  return `[${label}] ${title} (${y}) 전체 영화 FHD 한글자막 무료 스트리밍`;
 }
 
 function seoDescription(title, year, genreNames) {

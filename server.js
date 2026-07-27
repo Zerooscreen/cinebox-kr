@@ -23,7 +23,7 @@ function seoDescription(title, year, genreNames) {
   const yearPart = year ? `${year}년 작품, ` : '';
   const genrePart = genreNames ? `${genreNames} 장르, ` : '';
   return `${title} (${year || ''}) 전체 영화를 FHD 고화질 한글자막으로 무료 스트리밍하세요. 최신 영화 정보, 줄거리, 출연진, 평점 및 공식 예고편을 씨네박스에서 빠르게 확인할 수 있습니다.`;
-
+}
 app.use(express.static(path.join(__dirname, 'public')));
 
 const ROWS = {
